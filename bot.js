@@ -148,11 +148,8 @@ function generateScoreboard() {
     // Sort users by total deaths in descending order
     users.sort((a, b) => deaths[b].totalDeaths - deaths[a].totalDeaths);
 
-    let scoreboard = '```
-| Rango | Nombre de Usuario        | Total de Muertes    | Último Personaje Muerto                |
-';
-    scoreboard += '|-------|------------------------|--------------------|------------------------------------|
-';
+    let scoreboard = '```\n| Rango | Nombre de Usuario        | Total de Muertes    | Último Personaje Muerto                |\n';
+    scoreboard += '|-------|------------------------|--------------------|------------------------------------|\n';
 
     users.forEach((username, index) => {
         const userDeaths = deaths[username];
