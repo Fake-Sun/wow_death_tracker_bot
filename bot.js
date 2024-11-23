@@ -64,6 +64,9 @@ client.on('messageCreate', async message => {
 
 // Function to add a death
 async function addDeath(username, characterName, level, race, time, cause) {
+    // Save death to MongoDB
+    const death = new Death({ username, characterName, level, race, time, cause });
+    await death.save();
     // Create or update user in the deaths object
     if (!deaths[username]) {
         deaths[username] = {
@@ -157,6 +160,9 @@ function generateScoreboard() {
 
     return scoreboard + '```';
 }
+
+// Update deaths object from MongoDB after adding a death
+    deaths = await loadDeathsFromDatabase();
 
 // Function to delete a death from the database and update in-memory data
 async function deleteDeath(username, characterName) {
