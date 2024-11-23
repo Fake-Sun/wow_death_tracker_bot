@@ -1,5 +1,24 @@
+require('dotenv').config();
 const { Client, GatewayIntentBits } = require('discord.js');
 const express = require('express');
+const mongoose = require('mongoose');
+
+// Connect to MongoDB
+mongoose.connect(process.env.MONGO_URI, { useNewUrlParser: true, useUnifiedTopology: true })
+    .then(() => console.log('Connected to MongoDB'))
+    .catch((err) => console.error('Failed to connect to MongoDB', err));
+
+// Define Mongoose Schema and Model for deaths
+const deathSchema = new mongoose.Schema({
+    username: String,
+    characterName: String,
+    level: Number,
+    race: String,
+    time: String,
+    cause: String
+});
+
+const Death = mongoose.model('Death', deathSchema);
 
 const app = express();
 app.use(express.json());
@@ -44,7 +63,6 @@ client.on('messageCreate', message => {
 
 // Function to add a death
 function addDeath(username, characterName, level, race, time, cause) {
-    // Create or update user in the deaths object
     if (!deaths[username]) {
         deaths[username] = {
             totalDeaths: 0,
@@ -53,17 +71,14 @@ function addDeath(username, characterName, level, race, time, cause) {
         };
     }
 
-    // Update death information
     deaths[username].totalDeaths += 1;
-    const deathInfo = {
-        characterName,
-        level,
-        race,
-        time,
-        cause
-    };
+    const deathInfo = { characterName, level, race, time, cause };
     deaths[username].lastDeath = deathInfo;
     deaths[username].deathDetails.push(deathInfo);
+
+    // Save to MongoDB
+    const death = new Death({ username, characterName, level, race, time, cause });
+    death.save().catch(err => console.error('Failed to save death record:', err));
 
     // Announce death in the default channel if available
     if (defaultChannel) {
@@ -92,7 +107,6 @@ function generateScoreboard() {
         return 'No hay muertes registradas aún.';
     }
 
-    // Sort users by total deaths in descending order
     users.sort((a, b) => deaths[b].totalDeaths - deaths[a].totalDeaths);
 
     let scoreboard = '```\n| Rango | Nombre de Usuario          | Total de Muertes  | Último Personaje Muerto                   |\n';
@@ -117,8 +131,7 @@ function generateUserDeathList(username) {
     let deathList = '';
 
     userDeaths.forEach((death, index) => {
-        deathList += `${index + 1}. **${death.characterName}** - ☠️ *${death.time}* - Nivel ${death.level}, ${death.race} - *${death.cause}*
-`;
+        deathList += `${index + 1}. **${death.characterName}** - ☠️ *${death.time}* - Nivel ${death.level}, ${death.race} - *${death.cause}*\n`;
     });
 
     return deathList;
