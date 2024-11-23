@@ -5,7 +5,15 @@ const express = require('express');
 const app = express();
 app.use(express.json());
 
-const client = new Client({ intents: [GatewayIntentBits.Guilds, GatewayIntentBits.GuildMessages, GatewayIntentBits.MessageContent, GatewayIntentBits.GuildMessageReactions, GatewayIntentBits.GuildMembers] });
+const client = new Client({
+    intents: [
+        GatewayIntentBits.Guilds,
+        GatewayIntentBits.GuildMessages,
+        GatewayIntentBits.MessageContent,
+        GatewayIntentBits.GuildMessageReactions,
+        GatewayIntentBits.GuildMembers
+    ]
+});
 
 // MongoDB connection
 mongoose.connect(process.env.MONGO_URI, { useNewUrlParser: true, useUnifiedTopology: true })
@@ -48,7 +56,7 @@ client.on('messageCreate', async message => {
         }
 
         const [username, characterName, level, race, time, cause] = args;
-        addDeath(username, characterName, level, race, time, cause);
+        await addDeath(username, characterName, level, race, time, cause);
         message.channel.send(`Muerte añadida para **${username}**: ${characterName} (Nivel ${level}, ${race}) - ${cause} a las ${time}`);
     }
 
@@ -67,17 +75,14 @@ async function addDeath(username, characterName, level, race, time, cause) {
     // Save death to MongoDB
     const death = new Death({ username, characterName, level, race, time, cause });
     await death.save();
+
     // Create or update user in the deaths object
     if (!deaths[username]) {
         deaths[username] = {
-        totalDeaths: 0,
-        lastDeath: null,
-        deathDetails: []
-    };
-
-    // Save death to MongoDB
-    const death = new Death({ username, characterName, level, race, time, cause });
-    await death.save();
+            totalDeaths: 0,
+            lastDeath: null,
+            deathDetails: []
+        };
     }
 
     // Update death information
@@ -154,15 +159,11 @@ function generateScoreboard() {
     users.forEach((username, index) => {
         const userDeaths = deaths[username];
         const lastDeath = userDeaths.lastDeath;
-        scoreboard += `| ${(index + 1).toString().padEnd(6)} | ${username.padEnd(22)} | ${userDeaths.totalDeaths.toString().padEnd(18)} | ${lastDeath.characterName} (Nivel ${lastDeath.level}, ${lastDeath.race}) |
-`;
+        scoreboard += `| ${(index + 1).toString().padEnd(6)} | ${username.padEnd(22)} | ${userDeaths.totalDeaths.toString().padEnd(18)} | ${lastDeath.characterName} (Nivel ${lastDeath.level}, ${lastDeath.race}) |\n`;
     });
 
     return scoreboard + '```';
 }
-
-// Update deaths object from MongoDB after adding a death
-    deaths = await loadDeathsFromDatabase();
 
 // Function to delete a death from the database and update in-memory data
 async function deleteDeath(username, characterName) {
@@ -180,8 +181,7 @@ function generateUserDeathList(username) {
     let deathList = '';
 
     userDeaths.forEach((death, index) => {
-        deathList += `${index + 1}. **${death.characterName}** - ☠️ *${death.time}* - Nivel ${death.level}, ${death.race} - *${death.cause}*
-`;
+        deathList += `${index + 1}. **${death.characterName}** - ☠️ *${death.time}* - Nivel ${death.level}, ${death.race} - *${death.cause}*\n`;
     });
 
     return deathList;
