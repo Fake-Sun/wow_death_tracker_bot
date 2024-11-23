@@ -1,10 +1,28 @@
 const { Client, GatewayIntentBits } = require('discord.js');
+const mongoose = require('mongoose');
 const express = require('express');
 
 const app = express();
 app.use(express.json());
 
 const client = new Client({ intents: [GatewayIntentBits.Guilds, GatewayIntentBits.GuildMessages, GatewayIntentBits.MessageContent, GatewayIntentBits.GuildMessageReactions, GatewayIntentBits.GuildMembers] });
+
+// MongoDB connection
+mongoose.connect(process.env.MONGO_URI, { useNewUrlParser: true, useUnifiedTopology: true })
+    .then(() => console.log('Connected to MongoDB'))
+    .catch((err) => console.error('Failed to connect to MongoDB', err));
+
+// Define Mongoose Schema and Model for deaths
+const deathSchema = new mongoose.Schema({
+    username: String,
+    characterName: String,
+    level: Number,
+    race: String,
+    time: String,
+    cause: String
+});
+
+const Death = mongoose.model('Death', deathSchema);
 let deaths = {};
 let defaultChannel = null; // To keep track of the default channel to use
 
