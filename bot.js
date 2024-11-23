@@ -30,7 +30,7 @@ let defaultChannel = null; // To keep track of the default channel to use
 app.post('/death', async (req, res) => {
     const { username, characterName, level, race, time, cause } = req.body;
     await addDeath(username, characterName, level, race, time, cause);
-    res.sendStatus(200);
+    res.status(200).send('Death recorded successfully');
 });
 
 // Command to manually add a death
@@ -48,7 +48,7 @@ client.on('messageCreate', async message => {
         }
 
         const [username, characterName, level, race, time, cause] = args;
-        await addDeath(username, characterName, level, race, time, cause);
+        addDeath(username, characterName, level, race, time, cause);
         message.channel.send(`Muerte añadida para **${username}**: ${characterName} (Nivel ${level}, ${race}) - ${cause} a las ${time}`);
     }
 
@@ -67,24 +67,30 @@ async function addDeath(username, characterName, level, race, time, cause) {
     // Save death to MongoDB
     const death = new Death({ username, characterName, level, race, time, cause });
     await death.save();
-
     // Create or update user in the deaths object
     if (!deaths[username]) {
         deaths[username] = {
-            totalDeaths: 0,
-            lastDeath: null,
-            deathDetails: []
-        };
+        totalDeaths: 0,
+        lastDeath: null,
+        deathDetails: []
+    };
+
+    // Save death to MongoDB
+    const death = new Death({ username, characterName, level, race, time, cause });
+    await death.save();
     }
 
     // Update death information
     deaths[username].totalDeaths += 1;
-    const deathInfo = { characterName, level, race, time, cause };
+    const deathInfo = {
+        characterName,
+        level,
+        race,
+        time,
+        cause
+    };
     deaths[username].lastDeath = deathInfo;
     deaths[username].deathDetails.push(deathInfo);
-
-    // Update deaths object from MongoDB after adding a death
-    deaths = await loadDeathsFromDatabase();
 
     // Announce death in the default channel if available
     if (defaultChannel) {
@@ -142,17 +148,24 @@ function generateScoreboard() {
     // Sort users by total deaths in descending order
     users.sort((a, b) => deaths[b].totalDeaths - deaths[a].totalDeaths);
 
-    let scoreboard = '```\n| Rango | Nombre de Usuario        | Total de Muertes    | Último Personaje Muerto                |\n';
-    scoreboard += '|-------|------------------------|--------------------|------------------------------------|\n';
+    let scoreboard = '```
+| Rango | Nombre de Usuario        | Total de Muertes    | Último Personaje Muerto                |
+';
+    scoreboard += '|-------|------------------------|--------------------|------------------------------------|
+';
 
     users.forEach((username, index) => {
         const userDeaths = deaths[username];
         const lastDeath = userDeaths.lastDeath;
-        scoreboard += `| ${(index + 1).toString().padEnd(6)} | ${username.padEnd(22)} | ${userDeaths.totalDeaths.toString().padEnd(18)} | ${lastDeath.characterName} (Nivel ${lastDeath.level}, ${lastDeath.race}) |\n`;
+        scoreboard += `| ${(index + 1).toString().padEnd(6)} | ${username.padEnd(22)} | ${userDeaths.totalDeaths.toString().padEnd(18)} | ${lastDeath.characterName} (Nivel ${lastDeath.level}, ${lastDeath.race}) |
+`;
     });
 
     return scoreboard + '```';
 }
+
+// Update deaths object from MongoDB after adding a death
+    deaths = await loadDeathsFromDatabase();
 
 // Function to delete a death from the database and update in-memory data
 async function deleteDeath(username, characterName) {
@@ -170,7 +183,8 @@ function generateUserDeathList(username) {
     let deathList = '';
 
     userDeaths.forEach((death, index) => {
-        deathList += `${index + 1}. **${death.characterName}** - ☠️ *${death.time}* - Nivel ${death.level}, ${death.race} - *${death.cause}*\n`;
+        deathList += `${index + 1}. **${death.characterName}** - ☠️ *${death.time}* - Nivel ${death.level}, ${death.race} - *${death.cause}*
+`;
     });
 
     return deathList;
