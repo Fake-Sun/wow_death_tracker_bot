@@ -4,7 +4,15 @@ const express = require('express');
 const app = express();
 app.use(express.json());
 
-const client = new Client({ intents: [GatewayIntentBits.Guilds, GatewayIntentBits.GuildMessages, GatewayIntentBits.MessageContent] });
+const client = new Client({ 
+    intents: [
+      GatewayIntentBits.Guilds,
+      GatewayIntentBits.GuildMessages,
+      GatewayIntentBits.MessageContent,
+      GatewayIntentBits.GuildMessageReactions,
+      GatewayIntentBits.GuildMembers
+    ] 
+  });  
 const deaths = {};
 let defaultChannel = null; // To keep track of the default channel to use
 
