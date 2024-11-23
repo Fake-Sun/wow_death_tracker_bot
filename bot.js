@@ -95,16 +95,20 @@ function generateScoreboard() {
     // Sort users by total deaths in descending order
     users.sort((a, b) => deaths[b].totalDeaths - deaths[a].totalDeaths);
 
-    let scoreboard = '| **Rango** | **Nombre de Usuario** | **Total de Muertes** | **Último Personaje Muerto** |\n';
-    scoreboard += '|-----------|-----------------------|----------------------|-----------------------------|\n';
+    let scoreboard = '```
+| Rango | Nombre de Usuario     | Total de Muertes | Último Personaje Muerto            |
+';
+    scoreboard += '|-------|----------------------|----------------|--------------------------------|
+';
 
     users.forEach((username, index) => {
         const userDeaths = deaths[username];
         const lastDeath = userDeaths.lastDeath;
-        scoreboard += `| ${index + 1} | ${username} | ${userDeaths.totalDeaths} | ${lastDeath.characterName} (Nivel ${lastDeath.level}, ${lastDeath.race}) |\n`;
+        scoreboard += `| ${index + 1}     | ${username.padEnd(20)} | ${userDeaths.totalDeaths.toString().padEnd(16)} | ${lastDeath.characterName} (Nivel ${lastDeath.level}, ${lastDeath.race}) |
+`;
     });
 
-    return scoreboard;
+    return scoreboard + '```';
 }
 
 // Generate detailed death list for a specific user
