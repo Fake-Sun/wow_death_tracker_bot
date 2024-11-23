@@ -13,6 +13,7 @@ mongoose.connect(process.env.MONGO_URI, { useNewUrlParser: true, useUnifiedTopol
 const deathSchema = new mongoose.Schema({
     username: String,
     characterName: String,
+    characterClass: String,
     level: Number,
     race: String,
     time: String,
@@ -22,9 +23,9 @@ const Death = mongoose.model('Death', deathSchema);
 
 // Endpoint to receive death data from the companion app
 app.post('/death', async (req, res) => {
-    const { username, characterName, level, race, time, cause } = req.body;
+    const { username, characterName, characterClass, level, race, time, cause } = req.body;
     try {
-        const death = new Death({ username, characterName, level, race, time, cause });
+        const death = new Death({ username, characterName, characterClass, level, race, time, cause });
         await death.save();
         res.status(200).send('Death recorded successfully');
     } catch (error) {

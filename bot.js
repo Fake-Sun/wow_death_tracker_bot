@@ -10,6 +10,7 @@ mongoose.connect(process.env.MONGO_URI, { useNewUrlParser: true, useUnifiedTopol
 const deathSchema = new mongoose.Schema({
     username: String,
     characterName: String,
+    characterClass: String,
     level: Number,
     race: String,
     time: String,
@@ -38,14 +39,14 @@ client.on('messageCreate', async message => {
 
     if (message.content.startsWith('!adddeath')) {
         const args = message.content.split('|').map(arg => arg.trim()).slice(1);
-        if (args.length !== 6) {
-            message.channel.send('Formato incorrecto. Usa: `!adddeath | username | characterName | level | race | time | cause`');
+        if (args.length !== 7) {
+            message.channel.send('Formato incorrecto. Usa: `!adddeath | username | characterName | characterClass | level | race | time | cause`');
             return;
         }
 
-        const [username, characterName, level, race, time, cause] = args;
-        await addDeath(username, characterName, level, race, time, cause);
-        message.channel.send(`Muerte añadida para **${username}**: ${characterName} (Nivel ${level}, ${race}) - ${cause} a las ${time}`);
+        const [username, characterName, characterClass, level, race, time, cause] = args;
+        await addDeath(username, characterName, characterClass, level, race, time, cause);
+        message.channel.send(`Muerte añadida para **${username}**: ${characterName} (${characterClass}, Nivel ${level}, ${race}) - ${cause} a las ${time}`);
     }
 
     if (message.content === '!deaths') {
@@ -59,9 +60,9 @@ client.on('messageCreate', async message => {
 });
 
 // Function to add a death
-async function addDeath(username, characterName, level, race, time, cause) {
+async function addDeath(username, characterName, characterClass, level, race, time, cause) {
     // Save death to MongoDB
-    const death = new Death({ username, characterName, level, race, time, cause });
+    const death = new Death({ username, characterName, characterClass, level, race, time, cause });
     await death.save();
 
     // Create or update user in the deaths object
@@ -77,6 +78,7 @@ async function addDeath(username, characterName, level, race, time, cause) {
     deaths[username].totalDeaths += 1;
     const deathInfo = {
         characterName,
+        characterClass,
         level,
         race,
         time,
@@ -101,6 +103,7 @@ async function loadDeathsFromDatabase() {
         deathsMap[death.username].totalDeaths += 1;
         const deathInfo = {
             characterName: death.characterName,
+            characterClass: death.characterClass,
             level: death.level,
             race: death.race,
             time: death.time,
@@ -122,13 +125,13 @@ function generateScoreboard() {
     // Sort users by total deaths in descending order
     users.sort((a, b) => deaths[b].totalDeaths - deaths[a].totalDeaths);
 
-    let scoreboard = '```\n| Rango | Nombre de Usuario        | Total de Muertes    | Último Personaje Muerto                |\n';
-    scoreboard += '|-------|------------------------|--------------------|------------------------------------|\n';
+    let scoreboard = '```\n| Rango | Nombre de Usuario        | Total de Muertes    | Último Personaje Muerto                      |\n';
+    scoreboard += '|-------|------------------------|--------------------|------------------------------------------|\n';
 
     users.forEach((username, index) => {
         const userDeaths = deaths[username];
         const lastDeath = userDeaths.lastDeath;
-        scoreboard += `| ${(index + 1).toString().padEnd(6)} | ${username.padEnd(22)} | ${userDeaths.totalDeaths.toString().padEnd(18)} | ${lastDeath.characterName} (Nivel ${lastDeath.level}, ${lastDeath.race}) |\n`;
+        scoreboard += `| ${(index + 1).toString().padEnd(6)} | ${username.padEnd(22)} | ${userDeaths.totalDeaths.toString().padEnd(18)} | ${lastDeath.characterName} (${lastDeath.characterClass}, Nivel ${lastDeath.level}, ${lastDeath.race}) |\n`;
     });
 
     return scoreboard + '```';
