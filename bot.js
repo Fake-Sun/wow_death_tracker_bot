@@ -109,7 +109,7 @@ function generateUserDeathList(username) {
 }
 
 // Bot login
-client.login('YOUR_DISCORD_BOT_TOKEN');
+client.login(process.env.DISCORD_BOT_TOKEN);
 
 // Start the express server to receive data from the companion app
 app.listen(3000, () => {
