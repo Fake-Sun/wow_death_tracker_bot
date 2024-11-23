@@ -23,8 +23,8 @@ client.on('messageCreate', message => {
     }
 
     if (message.content.startsWith('!adddeath')) {
-        const args = message.content.split('|').map(arg => arg.trim());
-        if (args.length !== 6) {
+        const args = message.content.split('|').slice(1).map(arg => arg.trim());
+        if (args.length !== 5) {
             message.channel.send('Formato incorrecto. Usa: `!adddeath | username | characterName | level | race | time | cause`');
             return;
         }
@@ -97,7 +97,13 @@ function generateScoreboard() {
 
     let scoreboard = '| **Rango** | **Nombre de Usuario** | **Total de Muertes** | **Último Personaje Muerto** |\n';
     scoreboard += '|-----------|-----------------------|----------------------|-----------------------------|\n';
-
+    
+    users.forEach((username, index) => {
+        const userDeaths = deaths[username];
+        const lastDeath = userDeaths.lastDeath;
+        scoreboard += `| ${index + 1} | ${username} | ${userDeaths.totalDeaths} | ${lastDeath.characterName} (Nivel ${lastDeath.level}, ${lastDeath.race}) |\n`;
+    });
+    
 
     users.forEach((username, index) => {
         const userDeaths = deaths[username];
