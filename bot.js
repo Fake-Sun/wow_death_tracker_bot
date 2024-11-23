@@ -1,29 +1,11 @@
 const { Client, GatewayIntentBits } = require('discord.js');
 const express = require('express');
-const mongoose = require('mongoose');
-
-// Connect to MongoDB
-mongoose.connect(process.env.MONGO_URI, { useNewUrlParser: true, useUnifiedTopology: true })
-    .then(() => console.log('Connected to MongoDB'))
-    .catch((err) => console.error('Failed to connect to MongoDB', err));
-
-// Define Mongoose Schema and Model for deaths
-const deathSchema = new mongoose.Schema({
-    username: String,
-    characterName: String,
-    level: Number,
-    race: String,
-    time: String,
-    cause: String
-});
-
-const Death = mongoose.model('Death', deathSchema);
 
 const app = express();
 app.use(express.json());
 
 const client = new Client({ intents: [GatewayIntentBits.Guilds, GatewayIntentBits.GuildMessages, GatewayIntentBits.MessageContent, GatewayIntentBits.GuildMessageReactions, GatewayIntentBits.GuildMembers] });
-const deaths = {};
+let deaths = {};
 let defaultChannel = null; // To keep track of the default channel to use
 
 // Endpoint to receive death data from the companion app
@@ -34,7 +16,7 @@ app.post('/death', (req, res) => {
 });
 
 // Command to manually add a death
-client.on('messageCreate', message => {
+client.on('messageCreate', async message => {
     // Set the default channel if not already set
     if (!defaultChannel) {
         defaultChannel = message.channel;
@@ -53,6 +35,8 @@ client.on('messageCreate', message => {
     }
 
     if (message.content === '!deaths') {
+        // Reload deaths from MongoDB to ensure the latest data
+        deaths = await loadDeathsFromDatabase();
         message.channel.send(
             `☠️ **Tabla de Clasificación de Muertes** ☠️\n\n` +
             generateScoreboard()
@@ -62,6 +46,7 @@ client.on('messageCreate', message => {
 
 // Function to add a death
 function addDeath(username, characterName, level, race, time, cause) {
+    // Create or update user in the deaths object
     if (!deaths[username]) {
         deaths[username] = {
             totalDeaths: 0,
@@ -70,14 +55,17 @@ function addDeath(username, characterName, level, race, time, cause) {
         };
     }
 
+    // Update death information
     deaths[username].totalDeaths += 1;
-    const deathInfo = { characterName, level, race, time, cause };
+    const deathInfo = {
+        characterName,
+        level,
+        race,
+        time,
+        cause
+    };
     deaths[username].lastDeath = deathInfo;
     deaths[username].deathDetails.push(deathInfo);
-
-    // Save to MongoDB
-    const death = new Death({ username, characterName, level, race, time, cause });
-    death.save().catch(err => console.error('Failed to save death record:', err));
 
     // Announce death in the default channel if available
     if (defaultChannel) {
@@ -99,6 +87,32 @@ function addDeath(username, characterName, level, race, time, cause) {
     }
 }
 
+// Function to load deaths from MongoDB into memory
+async function loadDeathsFromDatabase() {
+    const allDeaths = await Death.find();
+    const deathsMap = {};
+    allDeaths.forEach(death => {
+        if (!deathsMap[death.username]) {
+            deathsMap[death.username] = {
+                totalDeaths: 0,
+                lastDeath: null,
+                deathDetails: []
+            };
+        }
+        deathsMap[death.username].totalDeaths += 1;
+        const deathInfo = {
+            characterName: death.characterName,
+            level: death.level,
+            race: death.race,
+            time: death.time,
+            cause: death.cause
+        };
+        deathsMap[death.username].lastDeath = deathInfo;
+        deathsMap[death.username].deathDetails.push(deathInfo);
+    });
+    return deathsMap;
+}
+
 // Generate a scoreboard
 function generateScoreboard() {
     const users = Object.keys(deaths);
@@ -106,18 +120,26 @@ function generateScoreboard() {
         return 'No hay muertes registradas aún.';
     }
 
+    // Sort users by total deaths in descending order
     users.sort((a, b) => deaths[b].totalDeaths - deaths[a].totalDeaths);
 
-    let scoreboard = '```\n| Rango | Nombre de Usuario          | Total de Muertes  | Último Personaje Muerto                   |\n';
-    scoreboard += '|-------|--------------------------|------------------|------------------------------------------|\n';
+    let scoreboard = '```\n| Rango | Nombre de Usuario        | Total de Muertes    | Último Personaje Muerto                |\n';
+    scoreboard += '|-------|------------------------|--------------------|------------------------------------|\n';
 
     users.forEach((username, index) => {
         const userDeaths = deaths[username];
         const lastDeath = userDeaths.lastDeath;
-        scoreboard += `| ${(index + 1).toString().padEnd(6)} | ${username.padEnd(26)} | ${userDeaths.totalDeaths.toString().padEnd(16)} | ${lastDeath.characterName} (Nivel ${lastDeath.level}, ${lastDeath.race}) |\n`;
+        scoreboard += `| ${(index + 1).toString().padEnd(6)} | ${username.padEnd(22)} | ${userDeaths.totalDeaths.toString().padEnd(18)} | ${lastDeath.characterName} (Nivel ${lastDeath.level}, ${lastDeath.race}) |
+`;
     });
 
     return scoreboard + '```';
+}
+
+// Function to delete a death from the database and update in-memory data
+async function deleteDeath(username, characterName) {
+    await Death.deleteOne({ username, characterName });
+    deaths = await loadDeathsFromDatabase();
 }
 
 // Generate detailed death list for a specific user
@@ -130,13 +152,20 @@ function generateUserDeathList(username) {
     let deathList = '';
 
     userDeaths.forEach((death, index) => {
-        deathList += `${index + 1}. **${death.characterName}** - ☠️ *${death.time}* - Nivel ${death.level}, ${death.race} - *${death.cause}*\n`;
+        deathList += `${index + 1}. **${death.characterName}** - ☠️ *${death.time}* - Nivel ${death.level}, ${death.race} - *${death.cause}*
+`;
     });
 
     return deathList;
 }
 
 // Bot login
+client.on('ready', async () => {
+    console.log(`Logged in as ${client.user.tag}`);
+    // Load deaths from MongoDB into memory on startup
+    deaths = await loadDeathsFromDatabase();
+});
+
 client.login(process.env.DISCORD_BOT_TOKEN);
 
 // Start the express server to receive data from the companion app
