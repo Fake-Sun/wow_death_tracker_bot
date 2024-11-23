@@ -30,6 +30,7 @@ const client = new Client({
 let deaths = {};
 let defaultChannel = null;
 
+// Command to manually add a death
 client.on('messageCreate', async message => {
     if (!defaultChannel) {
         defaultChannel = message.channel;
@@ -48,6 +49,7 @@ client.on('messageCreate', async message => {
     }
 
     if (message.content === '!deaths') {
+        // Reload deaths from MongoDB to ensure the latest data
         deaths = await loadDeathsFromDatabase();
         message.channel.send(
             `☠️ **Tabla de Clasificación de Muertes** ☠️\n\n` +
@@ -56,33 +58,45 @@ client.on('messageCreate', async message => {
     }
 });
 
-client.on('ready', async () => {
-    console.log(`Logged in as ${client.user.tag}`);
-    deaths = await loadDeathsFromDatabase();
-});
-
-client.login(process.env.DISCORD_BOT_TOKEN);
-
-// Functions for adding deaths and loading from MongoDB (similar to the previous code)
-
+// Function to add a death
 async function addDeath(username, characterName, level, race, time, cause) {
+    // Save death to MongoDB
     const death = new Death({ username, characterName, level, race, time, cause });
     await death.save();
+
+    // Create or update user in the deaths object
     if (!deaths[username]) {
-        deaths[username] = { totalDeaths: 0, lastDeath: null, deathDetails: [] };
+        deaths[username] = {
+            totalDeaths: 0,
+            lastDeath: null,
+            deathDetails: []
+        };
     }
+
+    // Update death information
     deaths[username].totalDeaths += 1;
-    const deathInfo = { characterName, level, race, time, cause };
+    const deathInfo = {
+        characterName,
+        level,
+        race,
+        time,
+        cause
+    };
     deaths[username].lastDeath = deathInfo;
     deaths[username].deathDetails.push(deathInfo);
 }
 
+// Function to load deaths from MongoDB into memory
 async function loadDeathsFromDatabase() {
     const allDeaths = await Death.find();
     const deathsMap = {};
     allDeaths.forEach(death => {
         if (!deathsMap[death.username]) {
-            deathsMap[death.username] = { totalDeaths: 0, lastDeath: null, deathDetails: [] };
+            deathsMap[death.username] = {
+                totalDeaths: 0,
+                lastDeath: null,
+                deathDetails: []
+            };
         }
         deathsMap[death.username].totalDeaths += 1;
         const deathInfo = {
@@ -120,28 +134,6 @@ function generateScoreboard() {
     return scoreboard + '```';
 }
 
-// Function to delete a death from the database and update in-memory data
-async function deleteDeath(username, characterName) {
-    await Death.deleteOne({ username, characterName });
-    deaths = await loadDeathsFromDatabase();
-}
-
-// Generate detailed death list for a specific user
-function generateUserDeathList(username) {
-    if (!deaths[username]) {
-        return `No hay muertes registradas para el usuario: ${username}`;
-    }
-
-    const userDeaths = deaths[username].deathDetails;
-    let deathList = '';
-
-    userDeaths.forEach((death, index) => {
-        deathList += `${index + 1}. **${death.characterName}** - ☠️ *${death.time}* - Nivel ${death.level}, ${death.race} - *${death.cause}*\n`;
-    });
-
-    return deathList;
-}
-
 // Bot login
 client.on('ready', async () => {
     console.log(`Logged in as ${client.user.tag}`);
@@ -150,9 +142,3 @@ client.on('ready', async () => {
 });
 
 client.login(process.env.DISCORD_BOT_TOKEN);
-
-// Start the express server to receive data from the companion app
-const PORT = process.env.PORT || 3000;
-app.listen(PORT, () => {
-    console.log(`Servidor ejecutándose en el puerto ${PORT}`);
-});
