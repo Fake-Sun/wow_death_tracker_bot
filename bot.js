@@ -4,22 +4,46 @@ const express = require('express');
 const app = express();
 app.use(express.json());
 
-const client = new Client({ 
-    intents: [
-      GatewayIntentBits.Guilds,
-      GatewayIntentBits.GuildMessages,
-      GatewayIntentBits.MessageContent,
-      GatewayIntentBits.GuildMessageReactions,
-      GatewayIntentBits.GuildMembers
-    ] 
-  });  
+const client = new Client({ intents: [GatewayIntentBits.Guilds, GatewayIntentBits.GuildMessages, GatewayIntentBits.MessageContent, GatewayIntentBits.GuildMessageReactions, GatewayIntentBits.GuildMembers] });
 const deaths = {};
 let defaultChannel = null; // To keep track of the default channel to use
 
 // Endpoint to receive death data from the companion app
 app.post('/death', (req, res) => {
     const { username, characterName, level, race, time, cause } = req.body;
+    addDeath(username, characterName, level, race, time, cause);
+    res.sendStatus(200);
+});
 
+// Command to manually add a death
+client.on('messageCreate', message => {
+    // Set the default channel if not already set
+    if (!defaultChannel) {
+        defaultChannel = message.channel;
+    }
+
+    if (message.content.startsWith('!adddeath')) {
+        const args = message.content.split('|').map(arg => arg.trim());
+        if (args.length !== 6) {
+            message.channel.send('Formato incorrecto. Usa: `!adddeath | username | characterName | level | race | time | cause`');
+            return;
+        }
+
+        const [command, username, characterName, level, race, time, cause] = args;
+        addDeath(username, characterName, level, race, time, cause);
+        message.channel.send(`Muerte añadida para **${username}**: ${characterName} (Nivel ${level}, ${race}) - ${cause} a las ${time}`);
+    }
+
+    if (message.content === '!deaths') {
+        message.channel.send(
+            `☠️ **Tabla de Clasificación de Muertes** ☠️\n\n` +
+            generateScoreboard()
+        );
+    }
+});
+
+// Function to add a death
+function addDeath(username, characterName, level, race, time, cause) {
     // Create or update user in the deaths object
     if (!deaths[username]) {
         deaths[username] = {
@@ -59,24 +83,7 @@ app.post('/death', (req, res) => {
     } else {
         console.error('No default channel set to send death announcement');
     }
-
-    res.sendStatus(200);
-});
-
-// Command to display the death scoreboard
-client.on('messageCreate', message => {
-    // Set the default channel if not already set
-    if (!defaultChannel) {
-        defaultChannel = message.channel;
-    }
-
-    if (message.content === '!deaths') {
-        message.channel.send(
-            `☠️ **Tabla de Clasificación de Muertes** ☠️\n\n` +
-            generateScoreboard()
-        );
-    }
-});
+}
 
 // Generate a scoreboard
 function generateScoreboard() {
@@ -91,10 +98,12 @@ function generateScoreboard() {
     let scoreboard = '| **Rango** | **Nombre de Usuario** | **Total de Muertes** | **Último Personaje Muerto** |\n';
     scoreboard += '|-----------|-----------------------|----------------------|-----------------------------|\n';
 
+
     users.forEach((username, index) => {
         const userDeaths = deaths[username];
         const lastDeath = userDeaths.lastDeath;
-        scoreboard += `| ${index + 1} | ${username} | ${userDeaths.totalDeaths} | ${lastDeath.characterName} (Nivel ${lastDeath.level}, ${lastDeath.race}) |\n`;
+        scoreboard += `| ${index + 1} | ${username} | ${userDeaths.totalDeaths} | ${lastDeath.characterName} (Nivel ${lastDeath.level}, ${lastDeath.race}) |
+`;
     });
 
     return scoreboard;
@@ -110,7 +119,8 @@ function generateUserDeathList(username) {
     let deathList = '';
 
     userDeaths.forEach((death, index) => {
-        deathList += `${index + 1}. **${death.characterName}** - ☠️ *${death.time}* - Nivel ${death.level}, ${death.race} - *${death.cause}*\n`;
+        deathList += `${index + 1}. **${death.characterName}** - ☠️ *${death.time}* - Nivel ${death.level}, ${death.race} - *${death.cause}*
+`;
     });
 
     return deathList;
@@ -120,6 +130,7 @@ function generateUserDeathList(username) {
 client.login(process.env.DISCORD_BOT_TOKEN);
 
 // Start the express server to receive data from the companion app
-app.listen(3000, () => {
-    console.log('Servidor ejecutándose en el puerto 3000');
+const PORT = process.env.PORT || 3000;
+app.listen(PORT, () => {
+    console.log(`Servidor ejecutándose en el puerto ${PORT}`);
 });
