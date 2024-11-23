@@ -63,14 +63,18 @@ client.on('messageCreate', async message => {
 });
 
 // Function to add a death
-function addDeath(username, characterName, level, race, time, cause) {
+async function addDeath(username, characterName, level, race, time, cause) {
     // Create or update user in the deaths object
     if (!deaths[username]) {
         deaths[username] = {
-            totalDeaths: 0,
-            lastDeath: null,
-            deathDetails: []
-        };
+        totalDeaths: 0,
+        lastDeath: null,
+        deathDetails: []
+    };
+
+    // Save death to MongoDB
+    const death = new Death({ username, characterName, level, race, time, cause });
+    await death.save();
     }
 
     // Update death information
