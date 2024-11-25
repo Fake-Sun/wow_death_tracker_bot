@@ -54,7 +54,9 @@ client.on('messageCreate', async message => {
         }
 
         await addDeath(username, characterName, characterClass, level, race, time, cause);
-        message.channel.send(`Muerte añadida para **${username}**: ${characterName} (${characterClass}, Nivel ${level}, ${race}) - ${cause} a las ${time}`);
+        
+        // Announce the death in the default channel
+        announceDeath(username, characterName, characterClass, level, race, time, cause);
     }
 
     if (message.content === '!deaths') {
@@ -94,6 +96,27 @@ async function addDeath(username, characterName, characterClass, level, race, ti
     };
     deaths[username].lastDeath = deathInfo;
     deaths[username].deathDetails.push(deathInfo);
+}
+
+// Function to announce death in the default channel
+function announceDeath(username, characterName, characterClass, level, race, time, cause) {
+    if (defaultChannel) {
+        defaultChannel.send(
+            `💀 **Anuncio de Muerte** 💀\n\n` +
+            `**Usuario:** \`${username}\`\n` +
+            `**Personaje:** **${characterName}** (${characterClass})\n` +
+            `**Nivel:** \`${level}\`\n` +
+            `**Raza:** \`${race}\`\n` +
+            `**Hora de Muerte:** ☠️ \`${time}\`\n` +
+            `**Causa de Muerte:** *${cause}*\n\n` +
+            `☠️ **Tabla de Clasificación de Muertes** ☠️\n\n` +
+            generateScoreboard() +
+            `\n\n📜 **Lista Detallada de Muertes para Usuario: ${username}** 📜\n` +
+            generateUserDeathList(username)
+        );
+    } else {
+        console.error('No default channel set to send death announcement');
+    }
 }
 
 // Function to load deaths from MongoDB into memory
@@ -143,6 +166,22 @@ function generateScoreboard() {
     });
 
     return scoreboard + '```';
+}
+
+// Generate detailed death list for a specific user
+function generateUserDeathList(username) {
+    if (!deaths[username]) {
+        return `No hay muertes registradas para el usuario: ${username}`;
+    }
+
+    const userDeaths = deaths[username].deathDetails;
+    let deathList = '';
+
+    userDeaths.forEach((death, index) => {
+        deathList += `${index + 1}. **${death.characterName}** - ☠️ *${death.time}* - Nivel ${death.level}, ${death.characterClass}, ${death.race} - *${death.cause}*\n`;
+    });
+
+    return deathList;
 }
 
 // Bot login
