@@ -44,7 +44,15 @@ client.on('messageCreate', async message => {
             return;
         }
 
-        const [username, characterName, characterClass, level, race, time, cause] = args;
+        const [username, characterName, characterClass, levelStr, race, time, cause] = args;
+
+        // Validate the level input
+        const level = parseInt(levelStr, 10);
+        if (isNaN(level)) {
+            message.channel.send('El nivel debe ser un número válido.');
+            return;
+        }
+
         await addDeath(username, characterName, characterClass, level, race, time, cause);
         message.channel.send(`Muerte añadida para **${username}**: ${characterName} (${characterClass}, Nivel ${level}, ${race}) - ${cause} a las ${time}`);
     }
